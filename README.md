@@ -6,18 +6,18 @@ Four Specialized Agents:
 - Routine – 7-day recovery plan
 - BrutalHonesty – direct feedback
 
-## Quick Start
+## Effect Display
 1.Web Page Display：
 <p align="center">
-  <img src="images/screenshot.png" width="600" alt="描述文字">
+  <img src="images/screenshot1.png" width="600" >
 </p>
 2.Error Reminder：
 <p align="center">
-  <img src="images/screenshot.png" width="600" alt="描述文字">
+  <img src="images/screenshot2.png" width="600" >
 </p>
 3.Result Display：
 <p align="center">
-  <img src="images/screenshot.png" width="600" alt="描述文字">
+  <img src="images/screenshot3.png" width="600" >
 </p>
 
 ## Quick Start
