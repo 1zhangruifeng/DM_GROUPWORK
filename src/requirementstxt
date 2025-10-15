@@ -1,0 +1,9 @@
+streamlit==1.44.1
+agno==1.2.13
+google-generativeai>=0.8.0        # Gemini
+openai>=1.0                       # OpenAI
+anthropic>=0.28                   # Claude
+deepseek>=0.1.0                   # DeepSeek
+duckduckgo-search
+pillow==11.1.0
+
