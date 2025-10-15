@@ -1,10 +1,24 @@
-# Emotional recovery AI assistant
+# Emotional Recovery AI Assistant
 
 Four Specialized Agents:
 - Therapist – empathetic support
 - Closure – unsent message drafts
 - Routine – 7-day recovery plan
 - BrutalHonesty – direct feedback
+
+## Quick Start
+1.Web Page Display：
+<p align="center">
+  <img src="images/screenshot.png" width="600" alt="描述文字">
+</p>
+2.Error Reminder：
+<p align="center">
+  <img src="images/screenshot.png" width="600" alt="描述文字">
+</p>
+3.Result Display：
+<p align="center">
+  <img src="images/screenshot.png" width="600" alt="描述文字">
+</p>
 
 ## Quick Start
 1. Download all 5 files into one folder.
