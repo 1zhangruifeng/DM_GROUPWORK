@@ -1,4 +1,3 @@
-# UI.py
 import streamlit as st
 from agent import build_agents, ModelChoice
 from utils import process_images, logger
@@ -7,6 +6,8 @@ from agno.exceptions import ModelProviderError
 from pathlib import Path
 import tempfile
 import os
+import json
+from datetime import datetime
 
 # --- 1. Page Configuration ---
 # 'wide' layout uses the full page width
@@ -19,6 +20,53 @@ if "api_key" not in st.session_state:
     st.session_state.api_key = ""
 if "history" not in st.session_state:
     st.session_state.history = []
+
+
+# --- Helper: 问题类型分类 ---
+def classify_issue_type(text: str) -> str:
+    """智能识别用户情感问题类型"""
+    text_lower = text.lower() if text else ""
+
+    if any(kw in text_lower for kw in
+           ["分手", "失恋", "前任", "ex", "离婚", "Breakup", "heartbreak", "divorce"]):
+        return "romantic breakup"
+    elif any(kw in text_lower for kw in ["吵架", "争吵", "冲突", "矛盾", "绝交", "误会", "朋友", "室友", "fight",
+                                         "argument", "conflict", "quarrel", "contradiction", "Break off relations",
+                                         "misunderstanding", "friends", "roommate"]):
+        return "interpersonal conflict"
+    elif any(kw in text_lower for kw in
+             ["工作", "职场", "老板", "同事", "绩效", "加班", "kpi", "裁员", "work", "job", "career",
+              " workplace ", "boss ", " colleague ", "performance ", " overtime ", "layoffs"]):
+        return "workplace stress"
+    elif any(kw in text_lower for kw in
+             ["焦虑", "抑郁", "压力", "失眠", "情绪", "心理", "难受", "anxiety", "depressed", "stress",
+              "insomnia ", "emotion ", " psychology ", "discomfort"]):
+        return "mental health"
+    elif any(kw in text_lower for kw in
+             ["家人", "家庭", "父母", "亲戚", "沟通", "代沟", "family", "parents", "relatives ",
+              "communication ", "generation gap"]):
+        return "family issues"
+    elif any(k in text_lower for k in
+             ["钱", "经济", "贫穷", "债务", "买不起", "Money ", " economy ", "poverty ", " debt ", "unaffordable"]):
+        return "financial stress"
+    elif any(k in text_lower for k in
+             ["考试", "挂科", "学习", "学业", "论文", "毕业", "gpa", "成绩", "Exam ", " Fail ", "Study ",
+              " academic performance ", "thesis ", " graduation ", "gpa", "grade"]):
+        return "academic anxiety"
+    else:
+        return "general emotional distress"
+
+
+def save_history():
+    """将对话历史保存到文件"""
+    try:
+        Path("conversation_history.json").write_text(
+            json.dumps(st.session_state.history, ensure_ascii=False, indent=2),
+            encoding='utf-8'
+        )
+    except Exception as e:
+        logger.error(f"保存历史记录失败: {e}")
+
 
 # --- 2. Left Sidebar (Chat History) ---
 # This is now docked to the far left edge
@@ -33,6 +81,7 @@ with st.sidebar:
                 st.markdown(f"**{len(st.session_state.history) - i}:** {item['input'][:40]}...")
                 if item['files']:
                     st.caption(f"📄 {len(item['files'])} files")
+                    st.caption(f"🏷️ {item.get('issue_type', 'general')}")
 
     st.markdown("---")
     st.markdown("""<div style='text-align:center'><p>由Data Mining小组制作</p>
@@ -73,10 +122,10 @@ with right_col:
         else:
             st.warning("Please enter your API key")
             links = {
-                "gemini": "https.makersuite.google.com/app/apikey",
-                "openai": "https.platform.openai.com/api-keys",
-                "claude": "https.console.anthropic.com/settings/keys",
-                "deepseek": "https.platform.deepseek.com/api-keys"
+                "gemini": "https://makersuite.google.com/app/apikey",
+                "openai": "https://platform.openai.com/api-keys",
+                "claude": "https://console.anthropic.com/settings/keys",
+                "deepseek": "https://platform.deepseek.com/api-keys"
             }
             st.markdown(f"""
             To get your API key:
@@ -87,8 +136,7 @@ with right_col:
 with center_col:
     st.title("Emotional Recovery AI Assistant")
     st.markdown("""### Your personal emotional recovery AI assistant is here to help you!
-    Share your feelings and chat screenshots, and I will offer you customized suggestions.""")
-
+    Share your feelings and images, and receive evidence-based support tailored to your situation.""")
     st.divider()
 
     # --- Input "Chat Box" Area ---
@@ -129,25 +177,23 @@ with center_col:
             if not all(agents):
                 st.error("Failed to initialize agents. Check API key and model choice.")
                 st.stop()
-            therapist, closure, routine, brutal = agents
+            empathy, cognitive, behavioral, motivational = agents
+
         except Exception as e:
             st.error(f"Failed to build agents: {e}. Please check your API key.")
             logger.error(f"Agent build error: {e}")
             st.stop()
 
         all_images = process_images(uploaded_files) if uploaded_files else []
-
-        # Add to history (this will be in session state)
-        history_entry = {"input": user_input, "files": [f.name for f in uploaded_files]}
-        st.session_state.history.append(history_entry)
+        issue_type = classify_issue_type(user_input)
 
         st.divider()
-        st.header("Your Personalized Recovery Plan")
+        st.header("🌱 Your Personalized Recovery Plan")
 
 
         def safe_run(agent, prompt, images):
             try:
-                return agent.run(message=prompt, images=images).content
+                return agent.run(input=prompt, images=images).content
             except ModelProviderError as e:
                 if "Insufficient Balance" in str(e) or "quota" in str(e).lower():
                     st.error(
@@ -164,26 +210,95 @@ with center_col:
                 st.stop()
 
 
-        with st.spinner("Getting empathetic support..."):
-            prompt_t = (f"User's message: {user_input}\nProvide compassionate response with validation, comfort, "
-                        f"relatable experiences and encouragement.")
-            st.subheader("💖 Emotional Support")
-            st.markdown(safe_run(therapist, prompt_t, all_images))
+        resp_empathy = resp_cognitive = resp_behavioral = resp_motivational = ""
+        # (1) Empathy Agent
+        with st.spinner("Analyzing your emotional state..."):
+            prompt_empathy = f"""YOUR TASK - EMOTIONAL VALIDATION:
 
-        with st.spinner("Crafting closure messages..."):
-            prompt_c = (f"User's feelings: {user_input}\nProvide unsent message templates, emotional release "
-                        f"exercises, closure rituals, moving forward strategies.")
-            st.subheader("✨ Finding Closure")
-            st.markdown(safe_run(closure, prompt_c, all_images))
+        User's Situation ({issue_type}): "{user_input}"
 
-        with st.spinner("Creating your recovery plan..."):
-            prompt_r = (f"Current state: {user_input}\nDesign 7-day recovery plan with daily activities, self-care "
-                        f"routines, social media guidelines, playlists.")
-            st.subheader("🗓️ Your Recovery Plan")
-            st.markdown(safe_run(routine, prompt_r, all_images))
+        MANDATORY STEPS:
+        1. Quote or paraphrase a specific part of their message
+        2. State their emotion explicitly: "I understand you're feeling [emotion]..."
+        3. Validate WHY this emotion makes sense in THEIR context
+        4. Share ONE brief relatable experience about {issue_type}
+        5. End with personalized encouragement using THEIR words
 
-        with st.spinner("Getting honest perspective..."):
-            prompt_b = (f"Situation: {user_input}\nProvide objective analysis, growth opportunities, future outlook, "
-                        f"actionable steps.")
-            st.subheader("🔍 Honest Perspective")
-            st.markdown(safe_run(brutal, prompt_b, all_images))
+        CRITICAL: Your response must reference their specific situation, not generic platitudes."""
+
+            st.subheader("💖 Emotional Validation & Support")
+            resp_empathy = safe_run(empathy, prompt_empathy, all_images)
+            st.markdown(resp_empathy)
+
+        # (2) Cognitive Restructuring Agent
+        with st.spinner("Identifying thought patterns..."):
+            prompt_cognitive = f"""YOUR TASK - COGNITIVE RESTRUCTURING:
+
+        User's Challenge ({issue_type}): "{user_input}"
+
+        REQUIRED APPROACH:
+        1. Identify 1-2 specific thought distortions in THEIR story (quote their words)
+        2. Explain how THEIR specific thinking pattern is unhelpful
+        3. Offer 2 alternative perspectives tailored to {issue_type}
+        4. Use Socratic questions referencing THEIR situation
+
+        FORBIDDEN: Generic CBT theory without connection to their story."""
+
+            st.subheader("🧠 Cognitive Restructuring")
+            resp_cognitive = safe_run(cognitive, prompt_cognitive, all_images)
+            st.markdown(resp_cognitive)
+
+        # (3) Behavioral Support Agent
+        with st.spinner("Creating action plan..."):
+            prompt_behavioral = f"""YOUR TASK - ACTIONABLE PLAN:
+
+        User's Context ({issue_type}): "{user_input}"
+
+        CREATE A 7-DAY PLAN SPECIFIC TO THEIR SITUATION:
+        Day 1-2: Immediate coping for THEIR specific stressors
+        Day 3-4: Activities that address THEIR pain points
+        Day 5-6: Social media boundaries for {issue_type}
+        Day 7: Reflection on THEIR progress
+
+        RULE: Every suggestion must connect to details in their story. No generic advice."""
+
+            st.subheader("🎯 Practical Coping Strategies")
+            resp_behavioral = safe_run(behavioral, prompt_behavioral, all_images)
+            st.markdown(resp_behavioral)
+
+        # (4) Motivational Agent
+        with st.spinner("Generating encouragement..."):
+            prompt_motivational = f"""YOUR TASK - PERSONALIZED MOTIVATION:
+
+        User's Struggle ({issue_type}): "{user_input}"
+
+        REQUIRED STRUCTURE:
+        1. Reference THEIR past resilience (ask: what have they overcome?)
+        2. Connect THEIR strength to THIS specific challenge
+        3. Use THEIR words to show deep understanding
+        4. Provide 3 encouraging next steps for THEIR situation
+
+        ABSOLUTELY NO generic motivational quotes. Make it deeply personal."""
+
+            st.subheader("💪 Strength & Motivation")
+            resp_motivational = safe_run(motivational, prompt_motivational, all_images)
+            st.markdown(resp_motivational)
+
+        # 在所有Agent完成后，保存历史记录
+        combined_response = f"""情感支持:{resp_empathy}
+                                认知重构:{resp_cognitive}
+                                行为支持:{resp_behavioral}
+                                动机强化:{resp_motivational}"""
+
+        # 添加到session state
+        history_entry = {
+            "input": user_input,
+            "response": combined_response,
+            "files": [f.name for f in uploaded_files],
+            "timestamp": datetime.now().isoformat(),
+            "issue_type": issue_type
+        }
+        st.session_state.history.append(history_entry)
+
+        # 保存到文件
+        save_history()

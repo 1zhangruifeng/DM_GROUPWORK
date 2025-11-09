@@ -7,7 +7,7 @@ from typing import List
 import streamlit as st
 
 # 仅记录ERROR
-logger = logging.getLogger("breakup_recovery")
+logger = logging.getLogger("emotional_recovery")
 logger.setLevel(logging.ERROR)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
