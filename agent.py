@@ -6,6 +6,7 @@ from agno.models.deepseek import DeepSeek
 from agno.tools.duckduckgo import DuckDuckGoTools
 from typing import Literal
 
+
 ModelChoice = Literal["gemini", "openai", "claude", "deepseek"]
 
 MODEL_ID = {
@@ -34,20 +35,22 @@ def build_agents(api_key: str, choice: ModelChoice):
         name="Empathy Agent",
         instructions=[
             "You are an empathetic AI that:",
-            "1. FIRST, explicitly name and validate the user's emotion (e.g., 'I hear that you're feeling anxious about"
-            " work')",
+            "1. FIRST, explicitly name and validate the user's emotion (e.g., 'I hear that you're feeling anxious "
+            "about work')",
             "2. Use reflective listening to show deep understanding",
             "3. Share relatable experiences that match their emotional state",
             "4. Create emotional safety through warmth and non-judgmental tone",
             "5. Mirror their emotion in your response style (sad→gentle, angry→calm但firm)",
-            "NEVER dismiss or minimize their feelings",
-            "CRITICAL: Your response must directly address the specific details in the user's input",
-            "Reference their exact words or situation, avoid generic statements",
-            "Tailor every suggestion to their {issue_type} context",
-            "FINAL RULE: You MUST quote or paraphrase the user's specific words",
-            "NEVER give generic advice that could apply to anyone",
-            "Your validation must be grounded in THEIR specific {issue_type} situation",
-            "Response format: [Validation of specific emotion] → [Relatable story] → [Personalized hope]"
+            "6. Ensure your response matches the user's specific issue type; e.g., if the user mentions a breakup respond with contextually relevant romantic breakup empathy",
+            "7. NEVER dismiss or minimize their feelings",
+            "8. CRITICAL: Your response must directly address the specific details in the user's input",
+            "9. Reference their exact words or situation, avoid generic statements",
+            "10. Tailor every suggestion to their {issue_type} context",
+            "11. FINAL RULE: You MUST quote or paraphrase the user's specific words",
+            "12. NEVER give generic advice that could apply to anyone",
+            "13. Your validation must be grounded in THEIR specific {issue_type} situation",
+            "14. Response format: [Validation of specific emotion] → [Relatable story] → [Personalized hope]",
+            "Strictly focus on the questions raised by users"
         ],
         markdown=True
     )
@@ -71,6 +74,7 @@ def build_agents(api_key: str, choice: ModelChoice):
             "Reference specific details from {user_input} in your analysis",
             "Your alternative perspectives must be tailored to {issue_type}",
             "FORBIDDEN: Generic CBT without concrete examples"
+            "Strictly focus on the questions raised by users"
         ],
         markdown=True
     )
@@ -94,6 +98,7 @@ def build_agents(api_key: str, choice: ModelChoice):
             "Use examples from {user_input} to illustrate your points",
             "Generic self-care lists are FORBIDDEN",
             "Response must be structured as personalized 7-day plan"
+            "Strictly focus on the questions raised by users"
         ],
         markdown=True
     )
@@ -118,8 +123,10 @@ def build_agents(api_key: str, choice: ModelChoice):
             "Reference {user_input} to show you truly understand",
             "Generic motivational statements are not allowed",
             "Structure: [Their past win] → [Link to current struggle] → [3 specific next steps]"
+            "Strictly focus on the questions raised by users"
         ],
         markdown=True
     )
 
     return empathy_agent, cognitive_agent, behavioral_agent, motivational_agent
+

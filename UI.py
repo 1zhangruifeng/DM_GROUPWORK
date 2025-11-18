@@ -8,6 +8,9 @@ import tempfile
 import os
 import json
 from datetime import datetime
+import pytesseract
+from PIL import Image
+import io
 
 # --- 1. Page Configuration ---
 # 'wide' layout uses the full page width
@@ -160,7 +163,7 @@ with center_col:
         if uploaded_files:
             with st.expander("View Uploaded Images"):
                 for file in uploaded_files:
-                    st.image(file, caption=file.name, use_container_width=True)
+                    st.image(file, caption=file.name, width='stretch')
 
     # --- Logic and Output Area (displays below the chat box) ---
     if submit_button:
@@ -171,6 +174,35 @@ with center_col:
         if not user_input and not uploaded_files:
             st.warning("Please share your feelings or upload screenshots to get help.")
             st.stop()
+        if st.session_state.model_choice == "deepseek" and uploaded_files:
+            import cv2
+            import numpy as np
+
+
+            def ocr_image(file):
+                img = Image.open(io.BytesIO(file.read()))
+                gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
+                # 1. 先轻度高斯模糊去噪
+                blur = cv2.GaussianBlur(gray, (3, 3), 0)
+                # 2. 大核自适应阈值
+                binary = cv2.adaptiveThreshold(
+                    blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                    cv2.THRESH_BINARY, 31, 8)
+                # 3. 2 倍放大
+                h, w = binary.shape
+                binary = cv2.resize(binary, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
+                file.seek(0)
+                return pytesseract.image_to_string(binary, lang="chi_sim+eng")
+
+
+            ocr_texts = []
+            for file in uploaded_files:
+                text = ocr_image(file)
+                ocr_texts.append(f"【Image {file.name}】\n{text}")
+            user_input = "\n\n".join(ocr_texts) + "\n\n" + (user_input or "")
+
+            with st.expander("📄 OCR 原始结果（调试）"):
+                st.text("\n".join(ocr_texts))
 
         try:
             agents = build_agents(st.session_state.api_key, st.session_state.model_choice)
@@ -186,6 +218,9 @@ with center_col:
 
         all_images = process_images(uploaded_files) if uploaded_files else []
         issue_type = classify_issue_type(user_input)
+
+        if st.session_state.model_choice == "deepseek":
+            all_images = []
 
         st.divider()
         st.header("🌱 Your Personalized Recovery Plan")

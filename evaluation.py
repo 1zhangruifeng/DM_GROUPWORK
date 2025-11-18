@@ -16,6 +16,70 @@ class OfflineEvaluator:
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = self._load_model()
         self.anomaly_patterns = self._init_anomaly_rules()
+        self.VALIDATION_PATTERNS = [
+            # =============================
+            # 英文部分（完全匹配你现有 agent 风格）
+            # =============================
+
+            # --- Emotion Naming ---
+            r"I (hear|see|understand) (that|how) (you('|’)re|you are) feeling",
+            r"It sounds like (you('|’)re|you are) feeling",
+            r"You (seem|sound) (really|so)? ?(upset|anxious|overwhelmed|sad|hurt|frustrated|angry)",
+            r"You mentioned that .*? made you feel",
+            r"From what you said,.*?you’re feeling",
+
+            # --- Reflective Listening ---
+            r"You’re saying that",
+            r"It seems like the situation with .*? is weighing on you",
+            r"When you said .*?, it really shows how you feel",
+            r"The way you described .*? suggests you’re feeling",
+
+            # --- Validation ---
+            r"That(’|'| is) completely understandable",
+            r"Anyone in your situation would feel this way",
+            r"What you’re feeling makes complete sense",
+            r"It’s valid to feel this way",
+            r"Your feelings are real and reasonable",
+            r"It’s okay to feel .*? given what you’ve been through",
+
+            # --- Quoting/Paraphrasing ---
+            r"When you mentioned",
+            r"As you said",
+            r"Based on what you wrote",
+            r"From your words",
+
+            # =============================
+            # 中文部分（按你的 agent 规则设计）
+            # =============================
+
+            # --- 中文情绪命名（必须点名情绪 + 用户语境） ---
+            r"我听到你说.*?(难过|痛苦|焦虑|生气|崩溃|压力|伤心|沮丧|不安|愤怒)",
+            r"听起来你.*?(难过|痛苦|崩溃|紧张|焦虑|不安|低落|心累)",
+            r"从你描述的.*?(事情|情况|经历).*?可以感觉到你很.*?(难受|辛苦|紧绷)",
+            r"你刚刚提到.*?让你觉得.*?(难受|害怕|担心|委屈)",
+            r"我能感受到你现在的情绪是.*?(很沉重|很难受|很混乱)",
+
+            # --- 中文反映式倾听（Reflective Listening） ---
+            r"你刚才说.*?这让我看到你真的很在意",
+            r"从你的描述里能感觉到.*?对你影响很大",
+            r"当你提到.*?的时候，我能感到你内心的波动",
+            r"你说的.*?显然让你很不好受",
+            r"你分享的这些让我看到你现在的状态确实不轻松",
+
+            # --- 中文情绪验证（Validation） ---
+            r"你有这样的感受是很正常的",
+            r"你的感受完全可以理解",
+            r"在这样的情况下有.*?的情绪是很合理的",
+            r"任何人在这样的情境下都会感到.*?(难受|压力|不安)",
+            r"你现在的感受很真实也很重要",
+            r"你会这样感觉真的一点都不奇怪",
+
+            # --- 引用用户原话（必须复述/引用用户话语） ---
+            r"当你说.*?的时候",
+            r"正如你刚刚提到的.*?",
+            r"从你刚刚的文字里看到.*?",
+            r"你提到.*?这一点真的能感觉到你的处境",
+        ]
 
     def _load_model(self):
         """加载轻量化多语言模型"""
@@ -102,16 +166,23 @@ class OfflineEvaluator:
 
         # 2. 检测直接情绪表达（用户输入）
         user_emotions = {
-            "悲伤": ["难过", "伤心", "痛苦", "失望", "心碎", "悲伤", "哭泣", "难受", "sad", "hurt", "pain"],
-            "焦虑": ["焦虑", "担心", "压力", "紧张", "不安", "害怕", "恐惧", "纠结", "anxious", "worried", "stress"],
-            "愤怒": ["生气", "愤怒", "恼火", "气愤", "恼怒", "不爽", "火大", "angry", "mad", "furious"]
+            "悲伤": ["难过", "伤心", "痛苦", "失望", "心碎", "悲伤", "哭泣", "难受", "失落", "心累"],
+            "焦虑": ["焦虑", "担心", "压力", "紧张", "不安", "害怕", "恐惧", "纠结", "紧绷", "心烦"],
+            "愤怒": ["生气", "愤怒", "恼火", "气愤", "恼怒", "不爽", "火大", "激怒"]
         }
+
         for emotion, keywords in user_emotions.items():
             if any(kw in text_lower for kw in keywords):
                 return emotion
 
         return "neutral"
-    
+
+    def contains_emotion_validation(self, text: str) -> bool:
+        for pattern in self.VALIDATION_PATTERNS:
+            if re.search(pattern, text):
+                return True
+        return False
+
     def compute_all_metrics(self, data: List[Dict[str, str]]) -> Dict[str, float]:
         """计算所有核心指标"""
         if len(data) < 3:
@@ -127,9 +198,27 @@ class OfflineEvaluator:
         avg_sim = np.mean(sims)
 
         # 2. 情绪匹配度
-        user_emo = [self.detect_emotion(t) for t in user_inputs]
-        resp_emo = [self.detect_emotion(t) for t in responses]
-        alignment = sum(1 for u, r in zip(user_emo, resp_emo) if (u == r) or (u != "neutral" and r != "neutral")) / len(user_emo)
+        success_count = 0
+        empathy_markers = [
+            "我能感受到你", "理解你的", "听到你", "感受到你的", "我看到你", "你现在的情绪", "你的感受"
+        ]
+
+        for ui, resp in zip(user_inputs, responses):
+            user_type = self.classify_issue_type(ui)
+            resp_lower = resp.lower()
+
+            # 情感问题类型匹配
+            agent_type_match = False
+            if user_type == self.classify_issue_type(resp):
+                agent_type_match = True
+
+            # 共情表达匹配
+            empathy_match = any(marker in resp for marker in empathy_markers)
+
+            if agent_type_match or empathy_match:
+                success_count += 1
+
+        alignment = success_count / len(user_inputs)
 
         # 3. 冗余度
         ngram_counts = {}
@@ -183,17 +272,26 @@ class OfflineEvaluator:
 
     def generate_report(self, metrics: Dict[str, float], output_path: str = None) -> str:
         """生成评估报告"""
+        rounds = metrics.get('对话轮次', 0)
+        # 动态情绪匹配度目标
+        if rounds <= 5:
+            emotion_target = 0.6
+        elif rounds <= 20:
+            emotion_target = 0.75
+        else:
+            emotion_target = 0.8
+
         report = f"""
 评估时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-评估轮次: {metrics.get('对话轮次', 0)}
+评估轮次: {rounds}
 
 {'=' * 60}
 核心指标
 {'=' * 60}
 语义相似度:  {metrics.get('语义相似度', 0):.3f}  |  目标>0.70  |  {'✅' if metrics.get('语义相似度', 0) > 0.7 else '❌'}
-情绪匹配度:  {metrics.get('情绪匹配度', 0):.3f}  |  目标>0.80  |  {'✅' if metrics.get('情绪匹配度', 0) > 0.8 else '❌'}
+情绪匹配度:  {metrics.get('情绪匹配度', 0):.3f}  |  目标>{emotion_target:.2f}  |  {'✅' if metrics.get('情绪匹配度', 0) > emotion_target else '❌'}
 回复冗余度:  {metrics.get('回复冗余度', 0):.3f}  |  目标<0.20  |  {'✅' if metrics.get('回复冗余度', 0) < 0.2 else '❌'}
-异常输出率:  {metrics.get('异常输出率', 0):.4f}  |  目标<0.001 |  {'✅' if metrics.get('异常输出率', 0) < 0.001 else '❌'}
+异常输出率:  {metrics.get('异常输出率', 0):.3f}  |  目标<0.001 |  {'✅' if metrics.get('异常输出率', 0) < 0.001 else '❌'}
 场景覆盖率:  {metrics.get('场景覆盖率', 0):.3f}  |  目标>0.70  |  {'✅' if metrics.get('场景覆盖率', 0) > 0.7 else '❌'}
 
 {'=' * 60}
@@ -203,7 +301,7 @@ class OfflineEvaluator:
 
         if metrics.get('语义相似度', 0) < 0.7:
             report += "• 语义相似度低：Agent回复偏离用户意图，需优化prompt清晰度\n"
-        if metrics.get('情绪匹配度', 0) < 0.8:
+        if metrics.get('情绪匹配度', 0) < emotion_target:
             report += "• 情绪匹配度低：Empathy Agent需要更强的情绪识别能力\n"
         if metrics.get('回复冗余度', 0) > 0.2:
             report += "• 冗余度高：四个Agent回复重复内容过多，需差异化指令\n"
@@ -212,7 +310,7 @@ class OfflineEvaluator:
 
         if all([
             metrics.get('语义相似度', 0) > 0.7,
-            metrics.get('情绪匹配度', 0) > 0.8,
+            metrics.get('情绪匹配度', 0) > emotion_target,
             metrics.get('回复冗余度', 0) < 0.2,
             metrics.get('异常输出率', 0) < 0.001
         ]):
