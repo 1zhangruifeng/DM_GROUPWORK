@@ -29,7 +29,7 @@ def build_agents(api_key: str, choice: ModelChoice):
     else:
         raise ValueError("Unknown model choice")
 
-    # (1) Empathy Agent - 情感检测与信任建立
+    # (1) Empathy Agent 
     empathy_agent = Agent(
         model=model,
         name="Empathy Agent",
@@ -55,7 +55,7 @@ def build_agents(api_key: str, choice: ModelChoice):
         markdown=True
     )
 
-    # (2) Cognitive Restructuring Agent - 认知重构
+    # (2) Cognitive Restructuring Agent 
     cognitive_agent = Agent(
         model=model,
         name="Cognitive Restructuring Agent",
@@ -79,7 +79,7 @@ def build_agents(api_key: str, choice: ModelChoice):
         markdown=True
     )
 
-    # (3) Behavioral Support Agent - 行为支持
+    # (3) Behavioral Support Agent 
     behavioral_agent = Agent(
         model=model,
         name="Behavioral Support Agent",
@@ -103,11 +103,11 @@ def build_agents(api_key: str, choice: ModelChoice):
         markdown=True
     )
 
-    # (4) Motivational Agent - 动机强化
+    # (4) Motivational Agent 
     motivational_agent = Agent(
         model=model,
         name="Motivational Agent",
-        tools=[DuckDuckGoTools()],  # 可搜索励志资源
+        tools=[DuckDuckGoTools()],  # Can search for inspiring resources
         instructions=[
             "You are a motivational coach that:",
             "1. Reinforces user's strengths and past resilience",
@@ -129,4 +129,5 @@ def build_agents(api_key: str, choice: ModelChoice):
     )
 
     return empathy_agent, cognitive_agent, behavioral_agent, motivational_agent
+
 
