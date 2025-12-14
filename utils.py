@@ -6,7 +6,7 @@ from agno.media import Image as AgnoImage
 from typing import List
 import streamlit as st
 
-# 仅记录ERROR
+# Only record ERROR
 logger = logging.getLogger("emotional_recovery")
 logger.setLevel(logging.ERROR)
 handler = logging.StreamHandler()
@@ -15,7 +15,7 @@ logger.addHandler(handler)
 
 
 def process_images(files) -> List[AgnoImage]:
-    """将Streamlit上传文件转成AgnoImage列表"""
+    """Convert the Streamlit uploaded file into an AgnoImage list"""
     processed = []
     for file in files:
         try:
@@ -26,3 +26,4 @@ def process_images(files) -> List[AgnoImage]:
         except Exception as e:
             logger.error(f"Error processing image {file.name}: {e}")
     return processed
+
