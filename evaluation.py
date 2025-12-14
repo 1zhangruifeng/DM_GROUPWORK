@@ -17,24 +17,21 @@ class OfflineEvaluator:
         self.model = self._load_model()
         self.anomaly_patterns = self._init_anomaly_rules()
         self.VALIDATION_PATTERNS = [
-            # =============================
-            # 英文部分（完全匹配你现有 agent 风格）
-            # =============================
 
-            # --- Emotion Naming ---
+            # Emotion Naming 
             r"I (hear|see|understand) (that|how) (you('|’)re|you are) feeling",
             r"It sounds like (you('|’)re|you are) feeling",
             r"You (seem|sound) (really|so)? ?(upset|anxious|overwhelmed|sad|hurt|frustrated|angry)",
             r"You mentioned that .*? made you feel",
             r"From what you said,.*?you’re feeling",
 
-            # --- Reflective Listening ---
+            # Reflective Listening 
             r"You’re saying that",
             r"It seems like the situation with .*? is weighing on you",
             r"When you said .*?, it really shows how you feel",
             r"The way you described .*? suggests you’re feeling",
 
-            # --- Validation ---
+            # Validation 
             r"That(’|'| is) completely understandable",
             r"Anyone in your situation would feel this way",
             r"What you’re feeling makes complete sense",
@@ -42,31 +39,28 @@ class OfflineEvaluator:
             r"Your feelings are real and reasonable",
             r"It’s okay to feel .*? given what you’ve been through",
 
-            # --- Quoting/Paraphrasing ---
+            # Quoting/Paraphrasing 
             r"When you mentioned",
             r"As you said",
             r"Based on what you wrote",
             r"From your words",
 
-            # =============================
-            # 中文部分（按你的 agent 规则设计）
-            # =============================
 
-            # --- 中文情绪命名（必须点名情绪 + 用户语境） ---
+            # Chinese emotion naming (must name the emotion + user context)
             r"我听到你说.*?(难过|痛苦|焦虑|生气|崩溃|压力|伤心|沮丧|不安|愤怒)",
             r"听起来你.*?(难过|痛苦|崩溃|紧张|焦虑|不安|低落|心累)",
             r"从你描述的.*?(事情|情况|经历).*?可以感觉到你很.*?(难受|辛苦|紧绷)",
             r"你刚刚提到.*?让你觉得.*?(难受|害怕|担心|委屈)",
             r"我能感受到你现在的情绪是.*?(很沉重|很难受|很混乱)",
 
-            # --- 中文反映式倾听（Reflective Listening） ---
+            # Chinese Reflective Listening
             r"你刚才说.*?这让我看到你真的很在意",
             r"从你的描述里能感觉到.*?对你影响很大",
             r"当你提到.*?的时候，我能感到你内心的波动",
             r"你说的.*?显然让你很不好受",
             r"你分享的这些让我看到你现在的状态确实不轻松",
 
-            # --- 中文情绪验证（Validation） ---
+            # Chinese Reflective Listening
             r"你有这样的感受是很正常的",
             r"你的感受完全可以理解",
             r"在这样的情况下有.*?的情绪是很合理的",
@@ -74,7 +68,7 @@ class OfflineEvaluator:
             r"你现在的感受很真实也很重要",
             r"你会这样感觉真的一点都不奇怪",
 
-            # --- 引用用户原话（必须复述/引用用户话语） ---
+            # Quote the user's original words (must repeat/quote the user's words)
             r"当你说.*?的时候",
             r"正如你刚刚提到的.*?",
             r"从你刚刚的文字里看到.*?",
@@ -82,13 +76,13 @@ class OfflineEvaluator:
         ]
 
     def _load_model(self):
-        """加载轻量化多语言模型"""
+        """Load lightweight multilingual models"""
         model_name = 'paraphrase-multilingual-MiniLM-L12-v2'
-        logger.info(f"正在加载模型: {model_name}")
+        logger.info(f"Loading the model: {model_name}")
         return SentenceTransformer(model_name, device=self.device)
 
     def _init_anomaly_rules(self) -> Dict[str, List[str]]:
-        """异常检测规则库"""
+        """Anomaly detection rule library"""
         return {
             "invalidating": ["你不应该", "别想太多", "你太敏感", "坚强点", "这没什么", "想开点"],
             "extreme": ["自杀", "kill yourself", "去死", "报复社会", "砍人", "杀人"],
@@ -96,7 +90,7 @@ class OfflineEvaluator:
         }
 
     def classify_issue_type(self, text: str) -> str:
-        """智能识别用户情感问题类型"""
+        """Intelligently identify the types of users' emotional problems"""
         text_lower = text.lower() if text else ""
 
         if any(kw in text_lower for kw in
@@ -129,21 +123,21 @@ class OfflineEvaluator:
             return "general emotional distress"
 
     def preprocess(self, text: str) -> str:
-        """快速预处理"""
+        """Fast preprocessing"""
         if not text: return ""
         text = re.sub(r'[^\w\s\u4e00-\u9fff]', ' ', text.lower())
         return ' '.join(text.split())
 
     def get_embedding(self, texts: List[str]) -> np.ndarray:
-        """获取语义向量"""
+        """Obtain semantic vectors"""
         processed = [self.preprocess(t) for t in texts]
         return self.model.encode(processed, convert_to_tensor=True, device=self.device).cpu().numpy()
 
     def detect_emotion(self, text: str) -> str:
-        """增强版情绪检测：支持更广泛的共情表达"""
+        """Enhanced Emotion Detection: Supports a wider range of empathetic expressions"""
         text_lower = text.lower()
 
-        # 共情标记库（大幅扩展，覆盖多种表达方式）
+        # Empathy Tag Library (Significantly expanded, covering multiple expressions)
         empathy_markers = {
             "悲伤": [
                 "理解你的难过", "听到你伤心", "感受到你的痛苦", "心碎很正常", "悲伤是可以理解的", "难过是正常的",
@@ -159,12 +153,12 @@ class OfflineEvaluator:
             ]
         }
 
-        # 1. 先检测是否包含共情回应（Agent回复）
+        # 1. Check if it includes an empathetic response (Agent reply)
         for emotion, markers in empathy_markers.items():
             if any(marker in text_lower for marker in markers):
                 return emotion
 
-        # 2. 检测直接情绪表达（用户输入）
+        # 2. Detect direct emotional expression (user input)
         user_emotions = {
             "悲伤": ["难过", "伤心", "痛苦", "失望", "心碎", "悲伤", "哭泣", "难受", "失落", "心累"],
             "焦虑": ["焦虑", "担心", "压力", "紧张", "不安", "害怕", "恐惧", "纠结", "紧绷", "心烦"],
@@ -184,20 +178,20 @@ class OfflineEvaluator:
         return False
 
     def compute_all_metrics(self, data: List[Dict[str, str]]) -> Dict[str, float]:
-        """计算所有核心指标"""
+        """Calculate all core indicators"""
         if len(data) < 3:
-            return {"error": "数据量不足（至少需要3轮对话）"}
+            return {"error": "Insufficient data volume (at least three rounds of dialogue are required)"}
 
         user_inputs = [d["user_input"] for d in data]
         responses = [d["agent_response"] for d in data]
 
-        # 1. 语义相似度
+        # 1. Semantic similarity
         user_emb = self.get_embedding(user_inputs)
         resp_emb = self.get_embedding(responses)
         sims = [float(cosine_similarity([u], [r])[0][0]) for u, r in zip(user_emb, resp_emb)]
         avg_sim = np.mean(sims)
 
-        # 2. 情绪匹配度
+        # 2. Emotional matching degree
         success_count = 0
         empathy_markers = [
             "我能感受到你", "理解你的", "听到你", "感受到你的", "我看到你", "你现在的情绪", "你的感受"
@@ -207,12 +201,12 @@ class OfflineEvaluator:
             user_type = self.classify_issue_type(ui)
             resp_lower = resp.lower()
 
-            # 情感问题类型匹配
+            # Emotional problem type matching
             agent_type_match = False
             if user_type == self.classify_issue_type(resp):
                 agent_type_match = True
 
-            # 共情表达匹配
+            # Empathetic expression matching
             empathy_match = any(marker in resp for marker in empathy_markers)
 
             if agent_type_match or empathy_match:
@@ -220,7 +214,7 @@ class OfflineEvaluator:
 
         alignment = success_count / len(user_inputs)
 
-        # 3. 冗余度
+        # 3. Redundancy
         ngram_counts = {}
         for resp in responses:
             words = resp.split()
@@ -228,7 +222,7 @@ class OfflineEvaluator:
                 ngram_counts[(a, b)] = ngram_counts.get((a, b), 0) + 1
         redundancy = sum(c - 1 for c in ngram_counts.values() if c > 1) / max(len(ngram_counts), 1)
 
-        # 4. 异常率
+        # 4. Anomaly rate
         anomalies = 0
         for resp in responses:
             resp_text = resp.lower()
@@ -236,8 +230,8 @@ class OfflineEvaluator:
                 anomalies += 1
         anomaly_rate = anomalies / len(responses)
 
-        # 5. 场景覆盖率
-        # 简化版：统计不同输入类型的覆盖情况
+        # 5. Scene coverage rate
+        # Simplified Version: Count the coverage of different input types
         issues = set()
         for ui in user_inputs:
             if any(k in ui for k in ["分手", "失恋", "ex", "heartbreak"]):
@@ -271,9 +265,9 @@ class OfflineEvaluator:
         }
 
     def generate_report(self, metrics: Dict[str, float], output_path: str = None) -> str:
-        """生成评估报告"""
-        rounds = metrics.get('对话轮次', 0)
-        # 动态情绪匹配度目标
+        """Generate an assessment report"""
+        rounds = metrics.get('Dialogue rounds', 0)
+        # Dynamic emotion matching degree target
         if rounds <= 5:
             emotion_target = 0.6
         elif rounds <= 20:
@@ -282,11 +276,11 @@ class OfflineEvaluator:
             emotion_target = 0.8
 
         report = f"""
-评估时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-评估轮次: {rounds}
+Evaluation time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Evaluation round: {rounds}
 
 {'=' * 60}
-核心指标
+Core indicators
 {'=' * 60}
 语义相似度:  {metrics.get('语义相似度', 0):.3f}  |  目标>0.70  |  {'✅' if metrics.get('语义相似度', 0) > 0.7 else '❌'}
 情绪匹配度:  {metrics.get('情绪匹配度', 0):.3f}  |  目标>{emotion_target:.2f}  |  {'✅' if metrics.get('情绪匹配度', 0) > emotion_target else '❌'}
@@ -295,7 +289,7 @@ class OfflineEvaluator:
 场景覆盖率:  {metrics.get('场景覆盖率', 0):.3f}  |  目标>0.70  |  {'✅' if metrics.get('场景覆盖率', 0) > 0.7 else '❌'}
 
 {'=' * 60}
-改进建议
+Improvement suggestions
 {'=' * 60}
 """
 
@@ -314,7 +308,7 @@ class OfflineEvaluator:
             metrics.get('回复冗余度', 0) < 0.2,
             metrics.get('异常输出率', 0) < 0.001
         ]):
-            report += "✅ 所有核心指标均已达标！\n"
+            report += "✅ All core indicators have been met!\n"
 
         if output_path:
             Path(output_path).write_text(report, encoding='utf-8')
@@ -322,7 +316,7 @@ class OfflineEvaluator:
 
 
 def run_evaluation(history_file: str = "conversation_history.json", output_dir: str = "evaluation_logs"):
-    """主评估流程"""
+    """Main evaluation process"""
     try:
         data = json.loads(Path(history_file).read_text(encoding='utf-8'))
         conversations = [
@@ -331,10 +325,10 @@ def run_evaluation(history_file: str = "conversation_history.json", output_dir: 
             if item.get("response") and item.get("input")
         ]
         if not conversations:
-            logger.error("没有找到有效的对话数据")
+            logger.error("No valid dialogue data was found")
             return
     except Exception as e:
-        logger.error(f"加载数据失败: {e}")
+        logger.error(f"Failed to load data: {e}")
         return
 
     evaluator = OfflineEvaluator()
@@ -349,10 +343,11 @@ def run_evaluation(history_file: str = "conversation_history.json", output_dir: 
     report_file = Path(output_dir) / f"report_{timestamp}.txt"
     report = evaluator.generate_report(metrics, str(report_file))
 
-    logger.info(f"✓ 评估完成，报告保存至: {report_file}")
-    logger.info(f"✓ 详细指标保存至: {result_file}")
+    logger.info(f"✓ The assessment is completed and the report is saved to: {report_file}")
+    logger.info(f"✓ Detailed indicators are saved to: {result_file}")
     print(report)
 
 
 if __name__ == "__main__":
     run_evaluation()
+
