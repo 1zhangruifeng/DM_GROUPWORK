@@ -30,6 +30,9 @@ Four Specialized Agents:
   <img src="images/5.png" width="600" >
 </p>
 <p align="center">
+  <img src="images/screenshot4.png" width="600" >
+</p>
+<p align="center">
   <img src="images/6.png" width="600" >
 </p>
 
