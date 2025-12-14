@@ -25,9 +25,9 @@ if "history" not in st.session_state:
     st.session_state.history = []
 
 
-# --- Helper: 问题类型分类 ---
+# --- Helper ---
 def classify_issue_type(text: str) -> str:
-    """智能识别用户情感问题类型"""
+    """Intelligently identify the types of users' emotional problems"""
     text_lower = text.lower() if text else ""
 
     if any(kw in text_lower for kw in
@@ -61,14 +61,14 @@ def classify_issue_type(text: str) -> str:
 
 
 def save_history():
-    """将对话历史保存到文件"""
+    """Save the conversation history to a file"""
     try:
         Path("conversation_history.json").write_text(
             json.dumps(st.session_state.history, ensure_ascii=False, indent=2),
             encoding='utf-8'
         )
     except Exception as e:
-        logger.error(f"保存历史记录失败: {e}")
+        logger.error(f"Failed to save the history record: {e}")
 
 
 # --- 2. Left Sidebar (Chat History) ---
@@ -88,7 +88,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("""<div style='text-align:center'><p>由Data Mining小组制作</p>
-    <p>我们衷心的希望您在这里修复情感</p></div>""", unsafe_allow_html=True)
+    <p>We sincerely hope that you can mend your relationship here</p></div>""", unsafe_allow_html=True)
 
 # --- 3. Main Page Layout (Center + Right) ---
 # 70% for main chat, 30% for config
@@ -99,7 +99,6 @@ with right_col:
     with st.container(border=True):
         st.header("⚙️ Configuration")
 
-        # 1. 选择模型
         model_choice: ModelChoice = st.selectbox(
             "Choose your model",
             options=["gemini", "openai", "claude", "deepseek"],
@@ -109,7 +108,6 @@ with right_col:
         if model_choice != st.session_state.model_choice:
             st.session_state.model_choice = model_choice
 
-        # 2. 输入对应 API Key
         api_key = st.text_input(
             f"Enter {model_choice.upper()} API Key",
             value=st.session_state.api_key,
@@ -119,7 +117,6 @@ with right_col:
         if api_key != st.session_state.api_key:
             st.session_state.api_key = api_key
 
-        # 3. 快速指引
         if api_key:
             st.success("API Key provided! ✅")
         else:
@@ -182,13 +179,13 @@ with center_col:
             def ocr_image(file):
                 img = Image.open(io.BytesIO(file.read()))
                 gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
-                # 1. 先轻度高斯模糊去噪
+                
                 blur = cv2.GaussianBlur(gray, (3, 3), 0)
-                # 2. 大核自适应阈值
+                
                 binary = cv2.adaptiveThreshold(
                     blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                     cv2.THRESH_BINARY, 31, 8)
-                # 3. 2 倍放大
+          
                 h, w = binary.shape
                 binary = cv2.resize(binary, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
                 file.seek(0)
@@ -232,16 +229,16 @@ with center_col:
             except ModelProviderError as e:
                 if "Insufficient Balance" in str(e) or "quota" in str(e).lower():
                     st.error(
-                        f"💰 **{st.session_state.model_choice.upper()} 账户余额不足！**\n\n"
-                        f"请前往官方控制台充值，或换用其它模型后再试。"
+                        f"💰 **{st.session_state.model_choice.upper()} The account balance is insufficient!**\n\n"
+                        f"Please go to the official console to recharge, or try again after switching to another model."
                     )
                 else:
-                    st.error(f"模型调用失败 (ModelProviderError): {e}")
+                    st.error(f"Model call failed (ModelProviderError): {e}")
                 logger.error(f"ModelProviderError: {e}")
                 st.stop()
             except Exception as e:
                 logger.error(f"Agent run error: {e}")
-                st.error(f"生成内容时出现异常: {e}")
+                st.error(f"An exception occurred when generating content: {e}")
                 st.stop()
 
 
@@ -319,13 +316,13 @@ with center_col:
             resp_motivational = safe_run(motivational, prompt_motivational, all_images)
             st.markdown(resp_motivational)
 
-        # 在所有Agent完成后，保存历史记录
+        # After all the agents have completed, save the historical records
         combined_response = f"""情感支持:{resp_empathy}
                                 认知重构:{resp_cognitive}
                                 行为支持:{resp_behavioral}
                                 动机强化:{resp_motivational}"""
 
-        # 添加到session state
+        # session state
         history_entry = {
             "input": user_input,
             "response": combined_response,
@@ -335,5 +332,5 @@ with center_col:
         }
         st.session_state.history.append(history_entry)
 
-        # 保存到文件
         save_history()
+
