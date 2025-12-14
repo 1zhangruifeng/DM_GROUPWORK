@@ -29,6 +29,27 @@ Four Specialized Agents:
 <p align="center">
   <img src="images/5.png" width="600" >
 </p>
+<p align="center">
+  <img src="images/6.png" width="600" >
+</p>
+
+## Add image recognition functionality (as some AI does not support image recognition) 
+1. English version：
+<p align="center">
+  <img src="images/7.png" width="600" >
+</p>
+<p align="center">
+  <img src="images/8.png" width="600" >
+</p>
+
+2. Chinses version：
+<p align="center">
+  <img src="images/9.png" width="600" >
+</p>
+<p align="center">
+  <img src="images/10.png" width="600" >
+</p>
+
 
 ## Quick Start
 1. Download four code files and two text descriptions.
