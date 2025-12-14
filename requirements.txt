@@ -1,4 +1,4 @@
-agent 需要：
+agent needs：
 streamlit==1.44.1
 agno==1.2.13
 google-generativeai>=0.8.0        # Gemini
@@ -13,5 +13,6 @@ sentence-transformers==2.2.2
 torch==2.0.1
 numpy==1.24.3
 scikit-learn==1.3.0
+
 
 
